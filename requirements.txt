@@ -3,4 +3,4 @@ numpy==1.26.4
 opencv-python-headless==5.0.0.93
 tensorflow==2.15.0
 streamlit-drawable-canvas== 0.9.3
-python-3.11
+python-3.10
