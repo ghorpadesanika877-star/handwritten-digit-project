@@ -8,12 +8,7 @@ import cv2
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras.models import load_model
-
 from tensorflow.keras.models import load_model
-
-
-
-import keras
 
 model = keras.models.load_model("digit_model-1.keras", compile=False)
 
