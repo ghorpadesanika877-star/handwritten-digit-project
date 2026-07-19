@@ -6,40 +6,24 @@ import numpy as np
 from streamlit_drawable_canvas import st_canvas
 import cv2
 import tensorflow as tf
-from tensorflow.keras import Sequential
-from tensorflow.keras.layers import Dense
 
-def build_model():
-    model = Sequential([
-        Dense(10, activation='sigmoid', input_shape=(784,))
-    ])
-    return model
+@st.cache_resource
+def load_my_model():
+    return tf.keras.models.load_model("digit_model.keras", compile=False)
 
-# मॉडेल तयार करणे
-model = build_model()
-
-# वेट्स किंवा संपूर्ण मॉडेल लोड करणे
 try:
-    model.load_weights("digit_model.h5")
+    model = load_my_model()
 except Exception as e:
-    st.warning("Trying backup load...")
-    model = tf.keras.models.load_model("digit_model.keras", compile=False)
+    st.error(f"Error loading model: {e}")
+    st.info("Please ensure that 'digit_model.keras' is uploaded to your GitHub repository.")
 
 def preprocess_canvas(img_rgba):
-    """Return a 28x28 single-channel float32 image normalized 0..1 with digit centered.
-       Steps:
-        - Convert RGBA to grayscale
-        - Normalize 0..255
-        - Threshold / binary invert heuristics
-        - Crop to bounding box of non-zero pixels
-        - Resize keeping aspect ratio so largest side -> 20 px
-        - Pad to 28x28 and center
-    """
+    """Return a 28x28 single-channel float32 image normalized 0..1 with digit centered."""
     # Convert to uint8 0..255
     arr = (img_rgba * 255).astype(np.uint8) if img_rgba.max() <= 1.0 else img_rgba.astype(np.uint8)
-    # If RGBA -> drop alpha but keep composite: convert to RGB first
+    
+    # Composite on black background using alpha channel if it exists
     if arr.shape[2] == 4:
-        # composite on black background using alpha
         alpha = arr[:, :, 3] / 255.0
         for c in range(3):
             arr[:, :, c] = (arr[:, :, c] * alpha + 0 * (1 - alpha)).astype(np.uint8)
@@ -48,26 +32,24 @@ def preprocess_canvas(img_rgba):
         rgb = arr[:, :, :3]
 
     # Convert to grayscale
-    gray = cv2.cvtColor(rgb, cv2.COLOR_BGR2GRAY)  # 0..255 (0 black, 255 white)
+    gray = cv2.cvtColor(rgb, cv2.COLOR_BGR2GRAY)
 
-    # Heuristic: if background is light (mean > 127), invert so foreground=white strokes -> white pixels
+    # Invert background if it is light
     mean_val = gray.mean()
     if mean_val > 127:
         gray = 255 - gray
 
-    # Binary threshold (make drawing strong)
+    # Binary threshold
     _, th = cv2.threshold(gray, 50, 255, cv2.THRESH_BINARY)
 
-    # Find bounding box of the drawn region
+    # Find bounding box
     coords = cv2.findNonZero(th)
     if coords is None:
-        # nothing drawn
-        blank28 = np.zeros((28, 28), dtype=np.float32)
-        return blank28
+        return np.zeros((28, 28), dtype=np.float32)
 
     x, y, w_box, h_box = cv2.boundingRect(coords)
 
-    # Crop the region with small padding
+    # Crop with padding
     padding = int(0.15 * max(w_box, h_box))
     x1 = max(x - padding, 0)
     y1 = max(y - padding, 0)
@@ -75,7 +57,7 @@ def preprocess_canvas(img_rgba):
     y2 = min(y + h_box + padding, gray.shape[0])
     cropped = th[y1:y2, x1:x2]
 
-    # Resize keeping aspect ratio: scale so largest side -> 20
+    # Resize keeping aspect ratio
     h_c, w_c = cropped.shape
     if h_c > w_c:
         new_h = 20
@@ -87,52 +69,45 @@ def preprocess_canvas(img_rgba):
     if new_h == 0: new_h = 1
     resized = cv2.resize(cropped, (new_w, new_h), interpolation=cv2.INTER_AREA)
 
-    # Make a 28x28 canvas and center the resized image
+    # Center on 28x28 canvas
     canvas = np.zeros((28, 28), dtype=np.uint8)
     x_offset = (28 - new_w) // 2
     y_offset = (28 - new_h) // 2
     canvas[y_offset:y_offset+new_h, x_offset:x_offset+new_w] = resized
 
-    # Optional: apply a final gaussian blur to smooth, then normalize to 0..1 (float)
+    # Smooth and normalize
     canvas = cv2.GaussianBlur(canvas, (3,3), 0)
     canvas = canvas.astype(np.float32) / 255.0
 
-    return canvas  # shape (28,28) float32, foreground ~1.0
+    return canvas
 
-st.title("Handwritten digit identification")
+st.title("Handwritten Digit Identification")
+
 canvas_result = st_canvas(
     width=280,
     height=280,
-    background_color="#000000",  # Black canvas
-    stroke_color="#FFFFFF",  # White ink
+    background_color="#000000",
+    stroke_color="#FFFFFF",
     drawing_mode="freedraw",
-    stroke_width=20)
+    stroke_width=20
+)
 
 def is_canvas_empty(img_rgba, threshold=10):
     if img_rgba is None:
         return True
-    
-    # img_rgba dtype might be float; convert range to 0-255
     arr = (img_rgba * 255).astype(np.uint8) if img_rgba.max() <= 1.0 else img_rgba.astype(np.uint8)
-    # If alpha exists and alpha == 0 everywhere -> empty
     if arr.shape[2] == 4:
         if np.all(arr[:, :, 3] == 0):
             return True
-    # else check max intensity (white strokes) over RGB channels
-    rgb_max = arr[:, :, :3].max()
-    return rgb_max < threshold
+    return arr[:, :, :3].max() < threshold
 
 def prepare_input_for_model(img28, model):
-    """Given 28x28 float image and a keras model, reshape to expected input."""
-    input_shape = model.input_shape  # e.g. (None, 784) or (None, 28,28,1) etc.
+    input_shape = model.input_shape
     if len(input_shape) == 2:
-        # Flattened MLP expecting (None, 784)
         x = img28.reshape(1, 28*28).astype(np.float32)
     elif len(input_shape) == 3:
-        # (None, 28, 28)
         x = img28.reshape(1, 28, 28).astype(np.float32)
     else:
-        # (None, 28, 28, 1) typical CNN
         x = img28.reshape(1, 28, 28, 1).astype(np.float32)
     return x
 
@@ -142,21 +117,19 @@ if st.button("Recognize"):
         st.error("No image is drawn")
     else:
         st.write("Recognizing...")
-        # Preprocess
         proc = preprocess_canvas(img)
-        # Show processed image for debugging
-        st.subheader("Processed image (28x28)")
+        
+        st.subheader("Processed Image (28x28)")
         st.image((proc * 255).astype(np.uint8), width=140)
+        
         x = prepare_input_for_model(proc, model)
-
         preds = model.predict(x)
         probs = preds.ravel()
         top3_idx = probs.argsort()[::-1][:3]
 
-        st.subheader("Top predictions")
+        st.subheader("Top Predictions")
         for i in top3_idx:
-            st.write(f"{i} — {probs[i]:.4f}")
+            st.write(f"Digit {i} — Probability: {probs[i]:.4f}")
 
         predicted_class = int(top3_idx[0])
         st.success(f"🎯 Predicted Digit: **{predicted_class}** (p={probs[predicted_class]:.3f})")
-
