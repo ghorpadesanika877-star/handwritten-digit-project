@@ -9,18 +9,23 @@ import tensorflow as tf
 
 # Load the model safely with legacy fallback
 @st.cache_resource
+# Load the model safely with correct legacy fallback
+@st.cache_resource
 def load_my_model():
     try:
-        # standard load
+        # 1. Standard Keras 3 / Native load
         return tf.keras.models.load_model("digit_model.keras", compile=False)
     except Exception:
         try:
-            # legacy format load if standard fails due to Keras 3 issues
-            return tf.keras.src.legacy.saving.models.load_model("digit_model.keras", compile=False)
-        except Exception as inner_e:
-            raise inner_e
-
-try:
+            # 2. Correct Legacy fallback for older trained models
+            import keras
+            return keras.saving.legacy.saved_model.load_context.load_model("digit_model.keras", compile=False)
+        except Exception:
+            try:
+                # 3. Direct low-level h5/keras fallback via backend
+                return tf.compat.v1.keras.models.load_model("digit_model.keras", compile=False)
+            except Exception as inner_e:
+                raise inner_e
     model = load_my_model()
 except Exception as e:
     st.error(f"Error loading model: {e}")
