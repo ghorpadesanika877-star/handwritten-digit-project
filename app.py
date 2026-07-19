@@ -10,13 +10,6 @@ from tensorflow import keras
 from tensorflow.keras.models import load_model
 from tensorflow.keras.models import load_model
 
-import os
-
-st.write("Current directory:", os.getcwd())
-st.write("Files in folder:", os.listdir("."))
-st.write("Model exists:", os.path.exists("digit_model.keras"))
-st.write("Model size:", os.path.getsize("digit_model.keras") if os.path.exists("digit_model.keras") else "Not Found")
-
 model = keras.models.load_model("digit_model.keras", compile=False)
 
 def preprocess_canvas(img_rgba):
