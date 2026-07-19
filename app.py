@@ -6,11 +6,11 @@ import numpy as np
 from streamlit_drawable_canvas import st_canvas
 import cv2
 import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras.models import load_model
+
 from tensorflow.keras.models import load_model
 
-model = keras.models.load_model("digit_model.keras", compile=False)
+
+model = load_model("digit_model.keras", compile=False)
 from tensorflow import keras
 
 model = keras.models.load_model(
