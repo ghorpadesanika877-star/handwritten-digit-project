@@ -1,33 +1,27 @@
 # pip install streamlit-drawable-canvas
 # pip install opencv-python
 
-# pip install streamlit-drawable-canvas
-# pip install opencv-python
-
 import streamlit as st
 import numpy as np
 from streamlit_drawable_canvas import st_canvas
 import cv2
 import tensorflow as tf
-  
-
+from tensorflow.keras import Sequential
+from tensorflow.keras.layers import Dense
 
 def build_model():
-    from tensorflow.keras import Sequential
-from tensorflow.keras.layers import Dense
-model = Sequential([
-    Dense(10, activation='sigmoid', input_shape=(784,))
-])
+    model = Sequential([
+        Dense(10, activation='sigmoid', input_shape=(784,))
     ])
     return model
 
+# मॉडेल तयार करणे
 model = build_model()
 
+# वेट्स किंवा संपूर्ण मॉडेल लोड करणे
 try:
-ा
     model.load_weights("digit_model.h5")
 except Exception as e:
- ा
     st.warning("Trying backup load...")
     model = tf.keras.models.load_model("digit_model.keras", compile=False)
 
@@ -68,7 +62,6 @@ def preprocess_canvas(img_rgba):
     coords = cv2.findNonZero(th)
     if coords is None:
         # nothing drawn
-        h, w = gray.shape
         blank28 = np.zeros((28, 28), dtype=np.float32)
         return blank28
 
