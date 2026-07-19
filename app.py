@@ -7,41 +7,43 @@ from streamlit_drawable_canvas import st_canvas
 import cv2
 import tensorflow as tf
 
-# Auto-train an accurate model on the fly using MNIST dataset
+# Load and train an optimized model on the fly (Cached so it runs ONLY once)
 @st.cache_resource
-def load_and_train_fallback_model():
-    st.sidebar.info("🤖 Modifying application... Training live model on MNIST...")
+def load_and_train_optimized_model():
+    st.sidebar.info("🤖 Training live model on MNIST dataset...")
     
-    # 1. Load standard MNIST data directly from Keras
+    # Load standard MNIST data
     (x_train, y_train), _ = tf.keras.datasets.mnist.load_data()
     
     # Normalize data
     x_train = x_train.astype(np.float32) / 255.0
     x_train = np.expand_dims(x_train, -1)
     
-    # 2. Build a reliable CNN/Dense model Architecture
+    # Build a stable 3-layer neural network
     model = tf.keras.models.Sequential([
         tf.keras.layers.Flatten(input_shape=(28, 28, 1)),
+        tf.keras.layers.Dense(256, activation='relu'),
+        tf.keras.layers.Dropout(0.2),
         tf.keras.layers.Dense(128, activation='relu'),
         tf.keras.layers.Dropout(0.2),
         tf.keras.layers.Dense(10, activation='softmax')
     ])
     
-    # 3. Fast Train with 2 epochs (Takes around 5-8 seconds on Streamlit CPU)
+    # Train with 5 epochs for much better accuracy (~97% train accuracy)
     model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
-    model.fit(x_train, y_train, epochs=2, batch_size=256, verbose=0)
+    model.fit(x_train, y_train, epochs=5, batch_size=256, verbose=0)
     
-    st.sidebar.success("✅ Training completed! Model is now highly accurate.")
+    st.sidebar.success("✅ Model ready with high accuracy!")
     return model
 
-# Initialize the self-trained accurate model
-model = load_and_train_fallback_model()
+# Initialize the model once
+model = load_and_optimized_model() if 'load_and_optimized_model' in locals() else load_and_train_optimized_model()
 
 def preprocess_canvas(img_rgba):
     # Convert to uint8 0..255
     arr = (img_rgba * 255).astype(np.uint8) if img_rgba.max() <= 1.0 else img_rgba.astype(np.uint8)
     
-    # Composite on black background using alpha channel if it exists
+    # Composite on black background using alpha channel
     if arr.shape[2] == 4:
         alpha = arr[:, :, 3] / 255.0
         for c in range(3):
@@ -54,14 +56,13 @@ def preprocess_canvas(img_rgba):
     gray = cv2.cvtColor(rgb, cv2.COLOR_BGR2GRAY)
 
     # Invert background if it is light
-    mean_val = gray.mean()
-    if mean_val > 127:
+    if gray.mean() > 127:
         gray = 255 - gray
 
     # Binary threshold
     _, th = cv2.threshold(gray, 50, 255, cv2.THRESH_BINARY)
 
-    # Find bounding box
+    # Find bounding box to crop tightly
     coords = cv2.findNonZero(th)
     if coords is None:
         return np.zeros((28, 28), dtype=np.float32)
@@ -76,7 +77,7 @@ def preprocess_canvas(img_rgba):
     y2 = min(y + h_box + padding, gray.shape[0])
     cropped = th[y1:y2, x1:x2]
 
-    # Resize keeping aspect ratio
+    # Resize keeping aspect ratio to 20x20 (like original MNIST)
     h_c, w_c = cropped.shape
     if h_c > w_c:
         new_h = 20
@@ -101,7 +102,7 @@ def preprocess_canvas(img_rgba):
     return canvas
 
 st.title("Handwritten Digit Identification")
-st.caption("Draw a digit (0-9) clearly in the center of the canvas and click Recognize.")
+st.caption("कॅनव्हासच्या मधोमध एखादा अंक (0-9) काढा आणि Recognize वर क्लिक करा.")
 
 canvas_result = st_canvas(
     width=280,
@@ -117,35 +118,22 @@ def is_canvas_empty(img_rgba, threshold=10):
     if img_rgba is None:
         return True
     arr = (img_rgba * 255).astype(np.uint8) if img_rgba.max() <= 1.0 else img_rgba.astype(np.uint8)
-    if arr.shape[2] == 4:
-        if np.all(arr[:, :, 3] == 0):
-            return True
+    if arr.shape[2] == 4 and np.all(arr[:, :, 3] == 0):
+        return True
     return arr[:, :, :3].max() < threshold
-
-def prepare_input_for_model(img28, model):
-    try:
-        input_shape = model.input_shape
-        if len(input_shape) == 2:
-            return img28.reshape(1, 28*28).astype(np.float32)
-        elif len(input_shape) == 3:
-            return img28.reshape(1, 28, 28).astype(np.float32)
-        else:
-            return img28.reshape(1, 28, 28, 1).astype(np.float32)
-    except:
-        return img28.reshape(1, 28, 28, 1).astype(np.float32)
 
 if st.button("Recognize", type="primary"):
     img = canvas_result.image_data
     if is_canvas_empty(img):
-        st.error("Please draw something on the canvas first!")
+        st.error("कृपया आधी बोर्डवर काहीतरी लिहा!")
     else:
-        with st.spinner("Processing your drawing..."):
+        with st.spinner("प्रोसेसिंग सुरू आहे..."):
             proc = preprocess_canvas(img)
             
             st.subheader("Processed Image (28x28)")
             st.image((proc * 255).astype(np.uint8), width=140)
             
-            x = prepare_input_for_model(proc, model)
+            x = proc.reshape(1, 28, 28, 1).astype(np.float32)
             preds = model.predict(x)
             probs = preds.ravel()
             top3_idx = probs.argsort()[::-1][:3]
