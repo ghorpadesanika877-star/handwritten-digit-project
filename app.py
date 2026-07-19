@@ -11,6 +11,14 @@ from tensorflow.keras.models import load_model
 from tensorflow.keras.models import load_model
 
 model = keras.models.load_model("digit_model.keras", compile=False)
+from tensorflow import keras
+
+model = keras.models.load_model(
+    "digit_model.keras",
+    compile=False
+)
+
+model.export("digit_model_savedmodel")
 
 def preprocess_canvas(img_rgba):
     """Return a 28x28 single-channel float32 image normalized 0..1 with digit centered.
