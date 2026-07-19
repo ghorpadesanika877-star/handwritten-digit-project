@@ -6,16 +6,25 @@ import numpy as np
 from streamlit_drawable_canvas import st_canvas
 import cv2
 import tensorflow as tf
-# Load the model safely
+# Load the model safely with legacy fallback
+@st.cache_resource
+def load_my_model():
+    try:
+        # standard load
+        return tf.keras.models.load_model("digit_model.keras", compile=False)
+    except Exception:
+        try:
+            # legacy format load if standard fails due to Keras 3 issues
+            return tf.keras.src.legacy.saving.models.load_model("digit_model.keras", compile=False)
+        except Exception as inner_e:
+            raise inner_e
+
 try:
     model = load_my_model()
 except Exception as e:
     st.error(f"Error loading model: {e}")
-    st.info("Please ensure that 'digit_model.keras' is uploaded to your GitHub repository.")
-    st.stop()  # Stop execution if model is not loaded properly
-
-def preprocess_canvas(img_rgba):
-    """Return a 28x28 single-channel float32 image normalized 0..1 with digit centered."""
+    st.info("Please ensure that 'digit_model.keras' is uploaded to the main folder of your GitHub repository.")
+    st.stop()
     # Convert to uint8 0..255
     arr = (img_rgba * 255).astype(np.uint8) if img_rgba.max() <= 1.0 else img_rgba.astype(np.uint8)
     
