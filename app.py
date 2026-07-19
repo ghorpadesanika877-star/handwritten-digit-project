@@ -1,24 +1,35 @@
 # pip install streamlit-drawable-canvas
 # pip install opencv-python
 
+# pip install streamlit-drawable-canvas
+# pip install opencv-python
+
 import streamlit as st
 import numpy as np
 from streamlit_drawable_canvas import st_canvas
 import cv2
 import tensorflow as tf
+  
 
-from tensorflow.keras.models import load_model
 
+def build_model():
+    from tensorflow.keras import Sequential
+from tensorflow.keras.layers import Dense
+model = Sequential([
+    Dense(10, activation='sigmoid', input_shape=(784,))
+])
+    ])
+    return model
 
-model = load_model("digit_model.keras", compile=False)
-from tensorflow import keras
+model = build_model()
 
-model = keras.models.load_model(
-    "digit_model.keras",
-    compile=False
-)
-
-model.export("digit_model_savedmodel")
+try:
+ा
+    model.load_weights("digit_model.h5")
+except Exception as e:
+ ा
+    st.warning("Trying backup load...")
+    model = tf.keras.models.load_model("digit_model.keras", compile=False)
 
 def preprocess_canvas(img_rgba):
     """Return a 28x28 single-channel float32 image normalized 0..1 with digit centered.
