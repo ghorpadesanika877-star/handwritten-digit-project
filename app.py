@@ -6,16 +6,13 @@ import numpy as np
 from streamlit_drawable_canvas import st_canvas
 import cv2
 import tensorflow as tf
-
-@st.cache_resource
-def load_my_model():
-    return tf.keras.models.load_model("digit_model.keras", compile=False)
-
+# Load the model safely
 try:
     model = load_my_model()
 except Exception as e:
     st.error(f"Error loading model: {e}")
     st.info("Please ensure that 'digit_model.keras' is uploaded to your GitHub repository.")
+    st.stop()  # Stop execution if model is not loaded properly
 
 def preprocess_canvas(img_rgba):
     """Return a 28x28 single-channel float32 image normalized 0..1 with digit centered."""
