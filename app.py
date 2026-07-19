@@ -7,22 +7,19 @@ from streamlit_drawable_canvas import st_canvas
 import cv2
 import tensorflow as tf
 
-# Load the model safely with correct legacy fallback
+# Load the model safely without unsupported arguments
 @st.cache_resource
 def load_my_model():
     try:
-        # 1. Standard Keras native load
+        # 1. Standard Keras load for standard models
         return tf.keras.models.load_model("digit_model.keras", compile=False)
     except Exception:
         try:
-            # 2. explicit format specification for newer/older keras mismatch
+            # 2. In case the file is an old H5 format but saved with .keras extension
+            import h5py
             return tf.keras.models.load_model("digit_model.keras", compile=False, safe_mode=False)
-        except Exception:
-            try:
-                # 3. Direct h5 format fallback if the file extension is tricking Keras
-                return tf.keras.models.load_model("digit_model.keras", compile=False, options=tf.saved_model.LoadOptions(allow_partial_checkpoint=True))
-            except Exception as inner_e:
-                raise inner_e
+        except Exception as inner_e:
+            raise inner_e
 
 # Model loading logic (Only once)
 try:
