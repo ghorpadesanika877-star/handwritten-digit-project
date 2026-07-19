@@ -9,21 +9,38 @@ import tensorflow as tf
 
 # Load the model safely with correct legacy fallback
 @st.cache_resource
+# pip install streamlit-drawable-canvas
+# pip install opencv-python
+
+import streamlit as st
+import numpy as np
+from streamlit_drawable_canvas import st_canvas
+import cv2
+import tensorflow as tf
+
+# Load the model safely with correct legacy fallback
+@st.cache_resource
 def load_my_model():
     try:
-        # 1. Standard Keras 3 / Native load
+        # 1. Standard Keras native load
         return tf.keras.models.load_model("digit_model.keras", compile=False)
     except Exception:
         try:
-            # 2. Correct Legacy fallback for older trained models
-            import keras
-            return keras.saving.legacy.saved_model.load_context.load_model("digit_model.keras", compile=False)
+            # 2. explicit format specification for newer/older keras mismatch
+            return tf.keras.models.load_model("digit_model.keras", compile=False, safe_mode=False)
         except Exception:
             try:
-                # 3. Direct low-level h5/keras fallback via backend
-                return tf.compat.v1.keras.models.load_model("digit_model.keras", compile=False)
+                # 3. Direct h5 format fallback if the file extension is tricking Keras
+                return tf.keras.models.load_model("digit_model.keras", compile=False, options=tf.saved_model.LoadOptions(allow_partial_checkpoint=True))
             except Exception as inner_e:
                 raise inner_e
+
+try:
+    model = load_my_model()
+except Exception as e:
+    st.error(f"Error loading model: {e}")
+    st.info("Please ensure that 'digit_model.keras' is uploaded to the main folder of your GitHub repository.")
+    st.stop()
 
 # --- इथे सिंटॅक्स एरर येत होता, तो 'try' ब्लॉक जोडून फिक्स केला आहे ---
 try:
