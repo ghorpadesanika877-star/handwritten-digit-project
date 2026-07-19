@@ -9,17 +9,6 @@ import tensorflow as tf
 
 # Load the model safely with correct legacy fallback
 @st.cache_resource
-# pip install streamlit-drawable-canvas
-# pip install opencv-python
-
-import streamlit as st
-import numpy as np
-from streamlit_drawable_canvas import st_canvas
-import cv2
-import tensorflow as tf
-
-# Load the model safely with correct legacy fallback
-@st.cache_resource
 def load_my_model():
     try:
         # 1. Standard Keras native load
@@ -35,14 +24,7 @@ def load_my_model():
             except Exception as inner_e:
                 raise inner_e
 
-try:
-    model = load_my_model()
-except Exception as e:
-    st.error(f"Error loading model: {e}")
-    st.info("Please ensure that 'digit_model.keras' is uploaded to the main folder of your GitHub repository.")
-    st.stop()
-
-# --- इथे सिंटॅक्स एरर येत होता, तो 'try' ब्लॉक जोडून फिक्स केला आहे ---
+# Model loading logic (Only once)
 try:
     model = load_my_model()
 except Exception as e:
