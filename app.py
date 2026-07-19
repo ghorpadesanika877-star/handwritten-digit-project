@@ -7,34 +7,35 @@ from streamlit_drawable_canvas import st_canvas
 import cv2
 import tensorflow as tf
 
-# Load or auto-train model safely
+# Auto-train an accurate model on the fly using MNIST dataset
 @st.cache_resource
-def load_my_model():
-    try:
-        # 1. Try standard load
-        return tf.keras.models.load_model("digit_model.keras", compile=False)
-    except Exception as e:
-        # 2. Fallback: Automatically create and build the architecture if file fails
-        st.sidebar.warning("Model file corrupted. Building an optimized fallback model...")
-        
-        # Simple yet highly accurate MNIST CNN/Dense Architecture
-        model = tf.keras.models.Sequential([
-            tf.keras.layers.Flatten(input_shape=(28, 28, 1)),
-            tf.keras.layers.Dense(128, activation='relu'),
-            tf.keras.layers.Dropout(0.2),
-            tf.keras.layers.Dense(10, activation='softmax')
-        ])
-        
-        # Dummy compile & single-batch fit just to initialize all weights/variables instantly
-        model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
-        dummy_x = np.zeros((1, 28, 28, 1), dtype=np.float32)
-        dummy_y = np.array([0])
-        model.fit(dummy_x, dummy_y, epochs=1, verbose=0)
-        
-        return model
+def load_and_train_fallback_model():
+    st.sidebar.info("🤖 Modifying application... Training live model on MNIST...")
+    
+    # 1. Load standard MNIST data directly from Keras
+    (x_train, y_train), _ = tf.keras.datasets.mnist.load_data()
+    
+    # Normalize data
+    x_train = x_train.astype(np.float32) / 255.0
+    x_train = np.expand_dims(x_train, -1)
+    
+    # 2. Build a reliable CNN/Dense model Architecture
+    model = tf.keras.models.Sequential([
+        tf.keras.layers.Flatten(input_shape=(28, 28, 1)),
+        tf.keras.layers.Dense(128, activation='relu'),
+        tf.keras.layers.Dropout(0.2),
+        tf.keras.layers.Dense(10, activation='softmax')
+    ])
+    
+    # 3. Fast Train with 2 epochs (Takes around 5-8 seconds on Streamlit CPU)
+    model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+    model.fit(x_train, y_train, epochs=2, batch_size=256, verbose=0)
+    
+    st.sidebar.success("✅ Training completed! Model is now highly accurate.")
+    return model
 
-# Initialize the model smoothly
-model = load_my_model()
+# Initialize the self-trained accurate model
+model = load_and_train_fallback_model()
 
 def preprocess_canvas(img_rgba):
     # Convert to uint8 0..255
@@ -122,7 +123,6 @@ def is_canvas_empty(img_rgba, threshold=10):
     return arr[:, :, :3].max() < threshold
 
 def prepare_input_for_model(img28, model):
-    # Dynamically match target model shape
     try:
         input_shape = model.input_shape
         if len(input_shape) == 2:
@@ -142,8 +142,7 @@ if st.button("Recognize", type="primary"):
         with st.spinner("Processing your drawing..."):
             proc = preprocess_canvas(img)
             
-            # Display what the model actually sees
-            st.subheader("Processed Matrix View (28x28)")
+            st.subheader("Processed Image (28x28)")
             st.image((proc * 255).astype(np.uint8), width=140)
             
             x = prepare_input_for_model(proc, model)
