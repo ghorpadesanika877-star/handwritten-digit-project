@@ -7,8 +7,6 @@ from streamlit_drawable_canvas import st_canvas
 import cv2
 import tensorflow as tf
 
-# Load the model safely with legacy fallback
-@st.cache_resource
 # Load the model safely with correct legacy fallback
 @st.cache_resource
 def load_my_model():
@@ -26,13 +24,15 @@ def load_my_model():
                 return tf.compat.v1.keras.models.load_model("digit_model.keras", compile=False)
             except Exception as inner_e:
                 raise inner_e
+
+# --- इथे सिंटॅक्स एरर येत होता, तो 'try' ब्लॉक जोडून फिक्स केला आहे ---
+try:
     model = load_my_model()
 except Exception as e:
     st.error(f"Error loading model: {e}")
     st.info("Please ensure that 'digit_model.keras' is uploaded to the main folder of your GitHub repository.")
     st.stop()
 
-# --- हे फंक्शन डिलीट झाल्यामुळे एरर येत होता, ते आता फिक्स केले आहे ---
 def preprocess_canvas(img_rgba):
     # Convert to uint8 0..255
     arr = (img_rgba * 255).astype(np.uint8) if img_rgba.max() <= 1.0 else img_rgba.astype(np.uint8)
