@@ -36,8 +36,8 @@ def load_and_train_optimized_model():
     st.sidebar.success("✅ Model ready with high accuracy!")
     return model
 
-# Initialize the model once
-model = load_and_optimized_model() if 'load_and_optimized_model' in locals() else load_and_train_optimized_model()
+# Initialize the model once using the exact matching function name
+model = load_and_train_optimized_model()
 
 def preprocess_canvas(img_rgba):
     # Convert to uint8 0..255
@@ -102,7 +102,7 @@ def preprocess_canvas(img_rgba):
     return canvas
 
 st.title("Handwritten Digit Identification")
-st.caption("कॅनव्हासच्या मधोमध एखादा अंक (0-9) काढा आणि Recognize वर क्लिक करा.")
+st.caption("Draw a digit (0-9) in the center of the canvas and click Recognize.")
 
 canvas_result = st_canvas(
     width=280,
@@ -125,9 +125,9 @@ def is_canvas_empty(img_rgba, threshold=10):
 if st.button("Recognize", type="primary"):
     img = canvas_result.image_data
     if is_canvas_empty(img):
-        st.error("कृपया आधी बोर्डवर काहीतरी लिहा!")
+        st.error("Please draw a digit on the canvas first!")
     else:
-        with st.spinner("प्रोसेसिंग सुरू आहे..."):
+        with st.spinner("Processing image..."):
             proc = preprocess_canvas(img)
             
             st.subheader("Processed Image (28x28)")
