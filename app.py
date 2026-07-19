@@ -10,7 +10,7 @@ import tensorflow as tf
 from tensorflow.keras.models import load_model
 
 
-model = load_model("digit_model.keras", compile=False)
+model = load_model("digit_model.h5", compile=False)
 from tensorflow import keras
 
 model = keras.models.load_model(
